@@ -60,8 +60,6 @@ limitdate = now - datetime.timedelta(days=HISTORY_DAYS)
 limit = limitdate.strftime('%Y%m%d')
 if HISTORY_DAYS > 0:
     DEBUGMSG += '- ignore events before ' + limitdate.strftime('%Y/%m/%d') + '\n'
-# this set will be used fo find duplicate events
-eventSet = set()
 if IGNORE_DUPLICATE:
     DEBUGMSG += '- ignore duplicated events\n'
 DEBUGMSG += 'init done\n'
@@ -100,16 +98,23 @@ for s in glob.glob(CALDIR + '*.ics'):
             # ...which name is VEVENT will be added to the new file
             if component.name == 'VEVENT':
                 try:
-                    eventId = component.get("UID", None) or str(component['dtstart']) + ' | ' + str(component['dtend']) + ' | ' + str(component['summary'])
+                    eventId = component.get("uid", None)
+                    if not eventId:
+                        eventId = str(component['dtstart']) \
+                                  + ' | ' \
+                                  + str(component['dtend']) \
+                                  + ' | ' \
+                                  + str(component['summary'])
+                        component["uid"] = eventId
                     if HISTORY_DAYS > 0:
                         eventStart = component.decoded('dtstart').strftime('%Y%m%d')
                         if eventStart < limit:
                             DEBUGMSG += '  skipped historic event before ' + limit + ' : ' + eventId + '\n'
                             continue
                     if IGNORE_DUPLICATE:
-                        if eventId not in eventSet:
-                            eventSet.add(eventId)
-                        else:
+                        if find_components_by_uid("VEVENT",
+                                                  eventId,
+                                                  newcal):
                             DEBUGMSG += '  skipped duplicated event: ' + eventId + '\n'
                             continue
                 except:
