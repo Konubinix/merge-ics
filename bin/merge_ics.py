@@ -81,6 +81,13 @@ newtimezone = Timezone()
 newtimezone.add('tzid', OUR_TIMEZONE)
 newcal.add_component(newtimezone)
 
+def find_components_by_uid(name, uid, cal):
+    """Given a calendar, find the component of name name that have the uid
+    uid"""
+    return [comp for comp in cal.wark(name)
+            if comp.get("UID", None) == uid
+    ]
+
 # Looping through the existing calendarfiles
 for s in glob.glob(CALDIR + '*.ics'):
     try:
