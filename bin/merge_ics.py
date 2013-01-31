@@ -93,14 +93,13 @@ for s in glob.glob(CALDIR + '*.ics'):
             # ...which name is VEVENT will be added to the new file
             if component.name == 'VEVENT':
                 try:
+                    eventId = component.get("UID", None) or str(component['dtstart']) + ' | ' + str(component['dtend']) + ' | ' + str(component['summary'])
                     if HISTORY_DAYS > 0:
                         eventStart = component.decoded('dtstart').strftime('%Y%m%d')
                         if eventStart < limit:
-                            eventId = str(component['dtstart']) + ' | ' + str(component['dtend']) + ' | ' + str(component['summary'])
                             DEBUGMSG += '  skipped historic event before ' + limit + ' : ' + eventId + '\n'
                             continue
                     if IGNORE_DUPLICATE:
-                        eventId = str(component['dtstart']) + ' | ' + str(component['dtend']) + ' | ' + str(component['summary'])
                         if eventId not in eventSet:
                             eventSet.add(eventId)
                         else:
