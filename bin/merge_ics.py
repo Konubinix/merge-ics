@@ -86,7 +86,7 @@ for s in glob.glob(CALDIR + '*.ics'):
     try:
         # open the file and read it
         calfile = open(s,'rb')
-        cal = Calendar.from_string(calfile.read())
+        cal = Calendar.from_ical(calfile.read())
         DEBUGMSG += 'reading file ' + s + '\n'
         # every part of the file...
         for component in cal.subcomponents:
@@ -122,7 +122,7 @@ for s in glob.glob(CALDIR + '*.ics'):
 # After the loop, we have all of our data and can write the file now
 try:
     f = open(ICS_OUT, 'wb')
-    f.write(newcal.as_string())
+    f.write(newcal.to_ical())
     f.close()
     DEBUGMSG += 'new calendar written\n'
 except:
