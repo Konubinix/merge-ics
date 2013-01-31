@@ -31,8 +31,9 @@
 #                   the variables in the script before you run it ;)
 #
 
+import os
 # Where is the configuration?
-CONF = '/etc/merge_ics.cfg'
+CONF = os.environ.get("MERGE_ICS_CONF_FILE", '/etc/merge_ics.cfg')
 
 #############################
 # Script:                   #
