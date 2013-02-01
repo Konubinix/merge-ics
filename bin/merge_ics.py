@@ -79,12 +79,23 @@ newtimezone = Timezone()
 newtimezone.add('tzid', OUR_TIMEZONE)
 newcal.add_component(newtimezone)
 
-def find_components_by_uid(name, uid, cal):
-    """Given a calendar, find the component of name name that have the uid
-    uid"""
-    return [comp for comp in cal.walk(name)
-            if comp.get("UID", None) == uid
-    ]
+# dict of association { UID : component }
+components = {}
+
+def less_than(comp1, comp2, name):
+    """Return whether comp2 is greater than comp1.
+
+    The used norm is:
+    comp1 < comp2 iif
+    - comp1[name] <= comp2[name]
+    - or comp1 == None"""
+    comp1_value = comp1.get(name, None)
+    comp2_value = comp2.get(name, None)
+    global DEBUGMSG
+    DEBUGMSG += '  comparing sequence for uid %s, %s vs %s\n' % (str(comp1["UID"]),
+                                                                 str(comp1_value),
+                                                                 str(comp2_value))
+    return comp1_value == None or comp1_value <= comp2_value
 
 # Looping through the existing calendarfiles
 for s in glob.glob(CALDIR + '*.ics'):
@@ -98,6 +109,7 @@ for s in glob.glob(CALDIR + '*.ics'):
             # ...which name is VEVENT will be added to the new file
             if component.name == 'VEVENT':
                 try:
+                    # make sure the component has an id
                     eventId = component.get("uid", None)
                     if not eventId:
                         eventId = str(component['dtstart']) \
@@ -106,28 +118,46 @@ for s in glob.glob(CALDIR + '*.ics'):
                                   + ' | ' \
                                   + str(component['summary'])
                         component["uid"] = eventId
+                    # ignore old entries
                     if HISTORY_DAYS > 0:
                         eventStart = component.decoded('dtstart').strftime('%Y%m%d')
                         if eventStart < limit:
                             DEBUGMSG += '  skipped historic event before ' + limit + ' : ' + eventId + '\n'
                             continue
+                    # ignore duplicates entries
                     if IGNORE_DUPLICATE:
-                        if find_components_by_uid("VEVENT",
-                                                  eventId,
-                                                  newcal):
-                            DEBUGMSG += '  skipped duplicated event: ' + eventId + '\n'
-                            continue
+                        recorded_comp = components.get(eventId, None)
+                        if recorded_comp:
+                            # make sure only one is used
+                            if IGNORE_DUPLICATE == "Latest":
+                                # use the SEQUENCE attribute to get the latest
+                                # version of the event
+                                if not less_than(recorded_comp, component,
+                                             "sequence"):
+                                    DEBUGMSG += '  skipped older event: ' + eventId + '\n'
+                                    continue
+                                else:
+                                    DEBUGMSG += '  replace older component by newer: ' + eventId + '\n'
+
+                            else:
+                                DEBUGMSG += '  skipped duplicated event: ' + eventId + '\n'
+                                continue
                 except:
                     # ignore events with missing dtstart, dtend or summary
-                    DEBUGMSG += ' ! skipped an event with missing dtstart, dtend or summary. likely historic or duplicated event.\n'
+                    DEBUGMSG += ' ! skipped an event due to errors, likely historic or duplicated event.\n'
                     continue
-                newcal.add_component(component)
+                # add the component so that it will be inserted into the calendar
+                components[eventId] = component
         # close the existing file
         calfile.close()
     except:
         # if the file was not readable, we need a errormessage ;)
         print MY_SHORTNAME + ': Error: reading file:', sys.exc_info()[1]
         print s
+
+# fill the calendar with the components
+for comp_key in components:
+    newcal.add_component(components[comp_key])
 
 
 # After the loop, we have all of our data and can write the file now
